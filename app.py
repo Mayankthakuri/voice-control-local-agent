@@ -576,70 +576,176 @@ with tab2:
 # ============================================================================
 
 with tab3:
-    st.header("📊 Latest Processing Result")
+    st.header("📊 Audio to Text & Code Conversion")
     
     if st.session_state.results:
         result = st.session_state.results[0]
         
-        # Transcription Section
-        st.subheader("🎤 Transcription")
-        st.info(result.transcription)
+        # Top Status Bar
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Status", "✅ Complete")
+        with col2:
+            st.metric("Intent", result.intent.replace("_", " ").title())
+        with col3:
+            st.metric("Confidence", f"{result.intent_confidence:.0%}")
+        with col4:
+            st.metric("Duration", format_duration(result.audio_duration))
+        
+        st.markdown("---")
+        
+        # SECTION 1: AUDIO TO TEXT (TRANSCRIPTION)
+        st.markdown("## 🎤 Audio to Text Conversion")
+        
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            st.markdown("### 📝 Transcribed Text")
+        with col2:
+            if st.button("📋 Copy", key="copy_transcript", help="Copy transcription"):
+                st.toast("📋 Copied to clipboard!", icon="✅")
+        
+        # Display transcription in expandable box
+        st.markdown(f"""
+        <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 4px solid #1f77b4;">
+            <p style="font-size: 16px; line-height: 1.6;">{result.transcription}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("**Word Count:** " + str(len(result.transcription.split())))
+        
+        st.markdown("---")
+        
+        # SECTION 2: INTENT ANALYSIS
+        st.markdown("## 🎯 Intent Analysis")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### Intent Classification")
-            st.markdown(f'<span class="status-badge status-online">{result.intent}</span>',
-                       unsafe_allow_html=True)
-            st.metric("Confidence", f"{result.intent_confidence:.0%}")
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; color: white;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">CLASSIFIED INTENT</p>
+                <h2 style="margin: 10px 0 0 0; text-transform: uppercase;">{result.intent.replace("_", " ")}</h2>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            st.markdown("### Processing Details")
-            st.metric("Duration", format_duration(result.audio_duration))
-            st.metric("Timestamp", result.timestamp)
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 10px; color: white;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">CONFIDENCE SCORE</p>
+                <h2 style="margin: 10px 0 0 0;">{result.intent_confidence:.0%}</h2>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col3:
-            st.markdown("### Intent Reasoning")
-            st.markdown(result.intent_reasoning)
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 10px; color: white;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.9;">REASONING</p>
+                <h2 style="margin: 10px 0 0 0; font-size: 16px;">{result.intent_reasoning}</h2>
+            </div>
+            """, unsafe_allow_html=True)
         
         st.markdown("---")
         
-        # Tool Result
-        st.subheader("⚙️ Tool Execution Result")
+        # SECTION 3: ACTION TAKEN & RESULTS
+        st.markdown("## ⚙️ Action Executed & Results")
         
         tool_result = result.tool_result
         
         if tool_result.get("success"):
-            st.success(f"✅ {tool_result['message']}")
+            col1, col2 = st.columns([1, 10])
+            with col1:
+                st.markdown("✅")
+            with col2:
+                st.success(f"**{tool_result['message']}**", icon=None)
             
+            st.markdown("---")
+            
+            # RESULT DETAILS BASED ON INTENT
             if result.intent == "create_file":
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("**Filename**")
-                    st.code(tool_result.get("filename", "N/A"))
-                with col2:
-                    st.markdown("**File Path**")
-                    st.code(tool_result.get("file_path", "N/A"))
+                st.markdown("### 📄 File Created")
                 
-                st.markdown("**Preview**")
-                st.text(tool_result.get("content_preview", "No content"))
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Filename:**")
+                    st.code(tool_result.get("filename", "N/A"), language="text")
+                
+                with col2:
+                    st.markdown("**File Path:**")
+                    st.code(tool_result.get("file_path", "N/A"), language="text")
+                
+                st.markdown("**File Content Preview:**")
+                st.text_area(
+                    "Content",
+                    value=tool_result.get("content_preview", "No content"),
+                    height=200,
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
             
             elif result.intent == "write_code":
-                st.markdown("**Generated Code**")
+                st.markdown("### 💻 Generated Code")
+                
+                col1, col2, col3 = st.columns([1, 1, 3])
+                
+                with col1:
+                    language = tool_result.get("language", "python")
+                    st.markdown(f"**Language:** `{language.upper()}`")
+                
+                with col2:
+                    if st.button("📋 Copy Code", key="copy_code"):
+                        st.toast("📋 Code copied!", icon="✅")
+                
+                with col3:
+                    if st.button("💾 Download", key="download_code"):
+                        st.download_button(
+                            label="Download Code",
+                            data=tool_result.get("code_preview", ""),
+                            file_name=f"generated_code.{language}",
+                            mime="text/plain",
+                            key="download_btn"
+                        )
+                
+                st.markdown("**Code:**")
                 st.code(
                     tool_result.get("code_preview", ""),
-                    language=tool_result.get("language", "python")
+                    language=language,
+                    line_numbers=True
                 )
             
             elif result.intent == "summarize":
-                st.markdown("**Summary**")
-                st.success(tool_result.get("summary", "No summary"))
+                st.markdown("### 📋 Summary Generated")
+                
+                st.markdown("**Summary Result:**")
+                st.info(tool_result.get("summary", "No summary available"))
             
-            else:
-                st.markdown(tool_result.get("response", "No response"))
+            elif result.intent == "general_chat":
+                st.markdown("### 💬 Chat Response")
+                
+                st.markdown("**Response:**")
+                st.markdown(tool_result.get("response", "No response available"))
         
         else:
             st.error(f"❌ {tool_result['message']}")
+        
+        st.markdown("---")
+        
+        # PROCESSING METADATA
+        st.markdown("### 📊 Processing Metadata")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Timestamp", result.timestamp)
+        
+        with col2:
+            st.metric("Audio Duration", format_duration(result.audio_duration))
+        
+        with col3:
+            st.metric("Processing Status", "Success" if not result.error else "Error")
+        
+        with col4:
+            st.metric("Error", result.error if result.error else "None")
     
     else:
         st.info("💡 No results yet. Record or upload audio to get started!")
@@ -670,29 +776,48 @@ with tab4:
         
         st.markdown("---")
         
-        st.subheader("Recent Sessions")
+        st.subheader("📜 Sessions Timeline")
         
-        for i, res in enumerate(st.session_state.results[:15], 1):
+        for i, res in enumerate(st.session_state.results[:20], 1):
+            status_icon = "✅" if not res.error else "❌"
+            
             with st.expander(
-                f"**{i}.** {res.intent.upper()} • {res.timestamp}",
+                f"{status_icon} **{i}.** {res.intent.replace('_', ' ').upper()} • {res.timestamp}",
                 expanded=False
             ):
-                col1, col2, col3 = st.columns(3)
+                col1, col2 = st.columns([1, 1])
                 
                 with col1:
-                    st.markdown("**Transcription**")
-                    st.text(res.transcription[:150] + "..." if len(res.transcription) > 150 else res.transcription)
+                    st.markdown("**📝 Transcription:**")
+                    transcription_preview = res.transcription[:200] + "..." if len(res.transcription) > 200 else res.transcription
+                    st.markdown(f"> {transcription_preview}")
                 
                 with col2:
-                    st.markdown("**Intent & Confidence**")
-                    st.markdown(f'<span class="status-badge status-online">{res.intent}</span>',
-                               unsafe_allow_html=True)
-                    st.progress(res.intent_confidence)
+                    st.markdown("**📊 Classification:**")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Intent", res.intent.replace("_", " "))
+                    with col_b:
+                        st.metric("Confidence", f"{res.intent_confidence:.0%}")
                 
-                with col3:
-                    st.markdown("**Status**")
-                    status = "✅ Success" if not res.error else "❌ Error"
-                    st.markdown(status)
+                st.markdown("---")
+                
+                # Show code if it was generated
+                if res.intent == "write_code":
+                    st.markdown("**💻 Generated Code:**")
+                    code_preview = res.tool_result.get("code_preview", "")[:300]
+                    st.code(code_preview, language=res.tool_result.get("language", "python"))
+                
+                # Show file if it was created
+                elif res.intent == "create_file":
+                    st.markdown("**📄 File Created:**")
+                    st.markdown(f"- **Filename:** `{res.tool_result.get('filename', 'N/A')}`")
+                    st.markdown(f"- **Path:** `{res.tool_result.get('file_path', 'N/A')}`")
+                
+                # Show summary if it was generated
+                elif res.intent == "summarize":
+                    st.markdown("**📋 Summary:**")
+                    st.markdown(res.tool_result.get("summary", "No summary"))
         
         st.markdown("---")
         
