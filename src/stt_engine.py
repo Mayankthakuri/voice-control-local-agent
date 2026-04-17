@@ -43,11 +43,23 @@ class STTEngine:
         
         try:
             with open(audio_file_path, "rb") as audio_file:
+                # Detect MIME type from file extension
+                file_ext = Path(audio_file_path).suffix.lower()
+                mime_type_map = {
+                    '.wav': 'audio/wav',
+                    '.mp3': 'audio/mpeg',
+                    '.m4a': 'audio/mp4',
+                    '.ogg': 'audio/ogg',
+                    '.flac': 'audio/flac',
+                    '.aac': 'audio/aac'
+                }
+                mime_type = mime_type_map.get(file_ext, 'audio/wav')
+                
                 files = {
                     "file": (
                         Path(audio_file_path).name,
                         audio_file,
-                        "audio/wav"
+                        mime_type
                     )
                 }
                 headers = {"Authorization": f"Bearer {self.api_key}"}
@@ -58,13 +70,17 @@ class STTEngine:
                     headers=headers,
                     files=files,
                     data=data,
-                    timeout=30
+                    timeout=60  # Increased timeout for better reliability
                 )
                 
                 response.raise_for_status()
                 result = response.json()
                 
-                return result.get("text", "").strip()
+                text = result.get("text", "").strip()
+                if not text:
+                    raise RuntimeError("Empty transcription returned by API")
+                
+                return text
                 
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Transcription API error: {str(e)}")

@@ -164,6 +164,23 @@ class VoiceAgent:
             # Record audio
             audio_data, sr = self.audio_processor.record_audio(duration=duration)
             
+            # Validate audio quality
+            if not self.audio_processor.validate_audio(audio_data):
+                timestamp = datetime.now().isoformat()
+                return AgentResult(
+                    timestamp=timestamp,
+                    audio_duration=0.0,
+                    transcription="",
+                    intent="general_chat",
+                    intent_confidence=0.0,
+                    intent_reasoning="Silent recording",
+                    tool_result={
+                        "success": False, 
+                        "message": "No audio detected. Please speak clearly and ensure microphone is working."
+                    },
+                    error="Silent recording detected"
+                )
+            
             # Save to temp file and process
             temp_file = self._save_temp_audio(audio_data, sr)
             result = self.process_audio_file(temp_file)
@@ -172,6 +189,14 @@ class VoiceAgent:
             
         except Exception as e:
             timestamp = datetime.now().isoformat()
+            error_msg = str(e)
+            
+            # Better error messages
+            if "sounddevice" in error_msg.lower():
+                error_msg = "Microphone not available. Please check your audio input device."
+            elif "not installed" in error_msg.lower():
+                error_msg = "Required audio library not installed. Run: pip install sounddevice"
+            
             return AgentResult(
                 timestamp=timestamp,
                 audio_duration=0.0,
@@ -197,6 +222,11 @@ class VoiceAgent:
         temp_file = Path(temp_dir) / f"voice_agent_{datetime.now().timestamp()}.wav"
         
         self.audio_processor.save_audio_file(audio_data, str(temp_file), sample_rate)
+        
+        # Store temp file path for cleanup
+        if not hasattr(self, '_temp_files'):
+            self._temp_files = []
+        self._temp_files.append(str(temp_file))
         
         return str(temp_file)
     

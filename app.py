@@ -491,20 +491,69 @@ with tab1:
                     st.session_state.results.insert(0, result)
                     status.update(label="✅ Recording complete!", state="complete")
                     
-                    st.success("✅ Audio processed successfully!")
-                    st.balloons()
+                    if result.error:
+                        st.error(f"⚠️ {result.error}")
+                        # Show helpful troubleshooting
+                        if "Silent" in result.error or "No audio" in str(result.tool_result.get("message", "")):
+                            st.warning("""
+                            **Troubleshooting Tips:**
+                            - 🔊 Increase your speaking volume
+                            - 🎤 Move closer to your microphone
+                            - 🔇 Reduce background noise
+                            - ✅ Ensure microphone permissions are granted
+                            """)
+                    else:
+                        st.success("✅ Audio processed successfully!")
+                        st.balloons()
                     
             except Exception as e:
                 logger.error(f"Recording error: {str(e)}")
-                st.error(f"❌ Recording failed: {str(e)}")
+                error_msg = str(e)
+                
+                # Provide specific error messages
+                if "sounddevice" in error_msg.lower():
+                    st.error("❌ Microphone not detected. Please check your audio input device.")
+                    st.info("Install sounddevice: `pip install sounddevice`")
+                elif "permission" in error_msg.lower():
+                    st.error("❌ Microphone permission denied. Please grant audio permission.")
+                else:
+                    st.error(f"❌ Recording failed: {error_msg}")
     
     with col2:
-        if st.button("🎵 Microphone Test", use_container_width=True):
-            st.info("🔊 Testing microphone connection...")
+        if st.button("🔧 Test Microphone", use_container_width=True, key="mic_test_btn"):
             try:
-                st.success("✅ Microphone is working")
+                with st.status("Testing microphone...", expanded=True) as status:
+                    status.write("📡 Detecting audio devices...")
+                    
+                    import sounddevice as sd
+                    import numpy as np
+                    
+                    # Quick 1-second test recording
+                    status.write("🎤 Recording 1-second test...")
+                    test_audio = sd.rec(
+                        int(1 * 16000),
+                        samplerate=16000,
+                        channels=1,
+                        dtype=np.float32
+                    )
+                    sd.wait()
+                    
+                    # Check signal
+                    rms = np.sqrt(np.mean(test_audio**2))
+                    status.write(f"🔊 Signal level: {rms:.6f}")
+                    
+                    if rms > 1e-4:
+                        status.update(label="✅ Microphone Working", state="complete")
+                        st.success("✅ Microphone is working and capturing audio!")
+                    else:
+                        status.update(label="⚠️ Test Complete", state="error")
+                        st.warning("⚠️ Microphone detected but no strong signal. Try speaking louder.")
+                        
+            except ImportError:
+                st.error("❌ sounddevice not installed. Run: `pip install sounddevice`")
             except Exception as e:
                 st.error(f"❌ Microphone test failed: {str(e)}")
+                st.info("Try checking your audio device settings.")
     
     st.markdown("---")
     st.markdown("### Tips for Best Results")

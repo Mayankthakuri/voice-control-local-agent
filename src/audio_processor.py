@@ -86,7 +86,15 @@ class AudioProcessor:
         sd.wait()
         print("Recording complete!")
         
-        return audio_data.squeeze(), self.sample_rate
+        # Normalize audio to prevent clipping and ensure proper volume
+        audio_data = audio_data.squeeze()
+        if audio_data.size > 0:
+            # Normalize to [-1, 1] range
+            max_val = np.max(np.abs(audio_data))
+            if max_val > 0:
+                audio_data = audio_data / max_val
+        
+        return audio_data, self.sample_rate
     
     def validate_audio(self, audio_data: np.ndarray) -> bool:
         """Validate audio data quality.
@@ -100,6 +108,7 @@ class AudioProcessor:
         if audio_data.size == 0:
             return False
         
-        # Check if audio has signal (not silent)
+        # Check if audio has signal (not silent) - more lenient threshold
         rms_energy = np.sqrt(np.mean(audio_data**2))
-        return rms_energy > 1e-6
+        # RMS threshold of 1e-4 allows for quiet but valid recordings
+        return rms_energy > 1e-4
