@@ -1,0 +1,19 @@
+streamlit
+librosa
+soundfile
+numpy
+scipy
+requests
+python-dotenv
+pydantic
+
+# Audio input (optional, uncomment if using microphone)
+# sounddevice==0.4.6
+
+# Note: For STT via API:
+# Set GROQ_API_KEY environment variable
+# https://console.groq.com
+
+# Note: Ollama must be running separately
+# Download from https://ollama.ai
+# Then: ollama pull mistral && ollama serve
